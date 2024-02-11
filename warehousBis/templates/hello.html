@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Warehouse Dashboard</title>
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+<!-- Include Leaflet JavaScript -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<style>
+    body, html {
+        height: 100%;
+        margin: 0;
+        font-family: Arial, sans-serif;
+      }
+    #map { /* specify a size for the map container */
+        height: 1000px;
+        width: 100%;
+      }
+      .dashboard {
+        background-color: #333;
+        color: white;
+        padding: 20px;
+        height: calc(100% - 40px);
+      }
+      
+       .fire-detection, .shelf-status {
+        margin-bottom: 20px;
+      }
+      
+      .temperature-graph, .humidity-graph {
+        width: 50%; /* Adjust the width as needed */
+        margin: 0 auto; /* Center the graph */
+        padding: 10px;
+        box-sizing: border-box;
+    }
+
+    .temperature-graph canvas, .humidity-graph canvas {
+        width: 100%;
+        height: 150px; /* Adjust the height as needed */
+    }
+      
+      .fire-detection, .shelf-status {
+        background-color: #222;
+        padding: 10px;
+        border-radius: 5px;
+      }
+      
+      .warehouse-map {
+        background-color: #222;
+        padding: 10px;
+        border-radius: 5px;
+        min-height: 200px; /* Adjust as needed */
+      }
+      
+      /* Additional styling can go here */
+       
+</style>
+</head>
+<body>
+<div class="dashboard">
+  <div class="temperature-graph">
+    <canvas id="temperatureGraph"></canvas>
+  </div>
+  <div class="humidity-graph">
+    <canvas id="humidityGraph"></canvas>
+  </div>
+  <div class="fire-detection">
+    <p>Fire Detection State: <span id="fireState">No fire detected</span></p>
+  </div>
+  <div class="shelf-status">
+    <p>Number of Empty Shelves: <span id="emptyShelves">0</span></p>
+  </div>
+  <div class="warehouse-map">
+      <p>Warehouse map will be added here.</p>
+  </div>
+  <div id="map">
+    <script>
+
+      // Initialize the map
+      var mymap = L.map('map').setView([34.044724,-6.787596], 25);
+
+      // Add a tile layer to the map
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+      }).addTo(mymap);
+
+      {% comment %} function display_merchandise() {
+        fetch('/warehouse/display_merchandise/') // Use the correct path to your Django view
+            .then(response => response.json())
+            .then(loc => {
+                var X = loc.x;
+                var Y = loc.y;
+                
+                // Add a marker to the map
+                var marker = L.marker([X, Y]).addTo(mymap);
+                marker.bindPopup('Your coordinates: ' + [X, Y].join(', ')).openPopup();
+            });
+      }
+
+      display_merchandise(); {% endcomment %}
+
+      function display_shelves_centroids() {
+        fetch('/warehouse/display_shelves_centroids/') // Use the correct path to your Django view
+            .then(response => response.json())
+            .then(shelves => {
+                // Iterate over each shelf
+                shelves.forEach(shelf => {
+                    var ID = shelf.label;
+                    var X = shelf.coordinates.x;
+                    var Y = shelf.coordinates.y;
+                    // Add a marker to the map
+                   //var marker = L.marker([X, Y]).addTo(mymap);
+                   //marker.bindPopup('Shelf number: ' + ID).openPopup();
+                });
+            });
+    }
+    
+      display_shelves_centroids();
+
+      function routing() {
+        var previousMarker = null; // Keep track of the previous marker
+        var polylines = []; // Keep track of polylines
+    
+        fetch('/warehouse/routing/') // Use the correct path to your Django view
+            .then(response => response.json())
+            .then(closest_shortest_path => {
+                // Define custom icon options using a predefined icon
+                var customIcon = L.icon({
+                    iconUrl: 'C:/IOT/v.png', // URL to the predefined icon image
+                    iconSize: [10, 10], // Size of the icon
+                });
+    
+                // Iterate over each point in the shortest path
+                closest_shortest_path.forEach((point, index) => {
+                    setTimeout(() => {
+                        // Remove the previous marker if it exists
+                        if (previousMarker !== null) {
+                            mymap.removeLayer(previousMarker);
+                        }
+    
+                        // Create a marker for each point using the custom icon
+                        var marker = L.marker([point[0], point[1]], {icon: customIcon}).addTo(mymap);
+    
+                        previousMarker = marker; // Update the previous marker
+                    }, index * 1000);
+                });
+    
+                // Iterate over each segment in the shortest path
+                for (var i = 0; i < closest_shortest_path.length - 1; i++) {
+                    var startPoint = closest_shortest_path[i];
+                    var endPoint = closest_shortest_path[i + 1];
+    
+                    // Create a polyline to represent the segment
+                    var polyline = L.polyline([
+                        [startPoint[0], startPoint[1]],
+                        [endPoint[0], endPoint[1]]
+                    ]).addTo(mymap);
+                    polylines.push(polyline); // Add polyline to the array
+                }
+    
+                // Remove the last polyline and marker after routing is completed
+                setTimeout(() => {
+                    if (previousMarker !== null) {
+                        mymap.removeLayer(previousMarker);
+                    }
+                    polylines.forEach(polyline => {
+                        mymap.removeLayer(polyline);
+                    });
+                }, closest_shortest_path.length * 1000);
+            });
+    }
+    
+    const INTERVAL = 5000; // Change this value to your preferred interval
+    setInterval(routing, INTERVAL);
+    routing();
+    
+
+  
+    
+  
+    </script>
+  </div>
+</div>
+
+
+<script>
+    let temperatureChart; // Declare this outside to make it accessible globally
+    
+    function fetchDataAndUpdateChart() {
+      fetch('/warehouse/get_temperature_data/') // Use the correct path to your Django view
+        .then(response => response.json())
+        .then(data => {
+          if (temperatureChart) {
+            // Update the chart if it already exists
+            temperatureChart.data.labels = data.labels;
+            temperatureChart.data.datasets[0].data = data.datasets[0].data;
+            temperatureChart.update();
+          } else {
+            // Create the chart if it does not exist
+            var ctxTemperature = document.getElementById('temperatureGraph').getContext('2d');
+            temperatureChart = new Chart(ctxTemperature, {
+              type: 'line',
+              data: data,
+              options: {}
+            });
+          }
+        })
+        .catch(error => console.error('Error fetching temperature data:', error));
+    }
+    
+    // Set the function to run every 2 seconds (2000 milliseconds)
+    const INTERVAL = 2000; // Change this value to your preferred interval
+    setInterval(fetchDataAndUpdateChart, INTERVAL);
+    
+    // Fetch data and create the chart when the page loads for the first time
+    window.onload = fetchDataAndUpdateChart;
+</script>
+
+</body>
+</html>

@@ -1,0 +1,37 @@
+body, html {
+    height: 100%;
+    margin: 0;
+    font-family: Arial, sans-serif;
+  }
+  
+  .dashboard {
+    background-color: #333;
+    color: white;
+    padding: 20px;
+    height: calc(100% - 40px);
+  }
+  
+  .temperature-graph, .humidity-graph, .fire-detection, .shelf-status {
+    margin-bottom: 20px;
+  }
+  
+  .temperature-graph canvas, .humidity-graph canvas {
+    width: 100%;
+    height: 150px; /* Adjust as needed */
+  }
+  
+  .fire-detection, .shelf-status {
+    background-color: #222;
+    padding: 10px;
+    border-radius: 5px;
+  }
+  
+  .warehouse-map {
+    background-color: #222;
+    padding: 10px;
+    border-radius: 5px;
+    min-height: 200px; /* Adjust as needed */
+  }
+  
+  /* Additional styling can go here */
+  
